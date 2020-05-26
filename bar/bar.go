@@ -14,6 +14,9 @@ type Bar struct {
 	wid xproto.Window
 
 	//
+	font xproto.Font
+
+	//
 	name string
 
 	//
@@ -28,9 +31,13 @@ type Bar struct {
 }
 
 func New(conn *xgb.Conn) Bar {
+	// TEMP
+	fontid, _ := initFont(conn, font)
+
 	//
 	return Bar{
 		conn: conn,
+		font: fontid,
 		name: name,
 		x:    x,
 		y:    y,
@@ -53,6 +60,8 @@ func (b Bar) Map() error {
 		return err
 	}
 
+    // TODO create pixmap here
+
 	err = xproto.CreateWindowChecked(
 		b.conn,
 		screen.RootDepth,
@@ -65,8 +74,8 @@ func (b Bar) Map() error {
 		0,
 		xproto.WindowClassInputOutput,
 		screen.RootVisual,
-		xproto.CwBackPixel,
-		[]uint32{b.bg},
+		xproto.CwBackPixel, // remove (?)
+		[]uint32{b.bg},     // remove (?)
 	).Check()
 	if err != nil {
 		return err
@@ -81,9 +90,31 @@ func (b Bar) Map() error {
 	//
 	xproto.MapWindow(b.conn, b.wid)
 
+	//
+	pix, err := initPixmap(b.conn, screen)
+	if err != nil {
+		return err
+	}
+
+	//
+	xproto.ChangeWindowAttributes(
+		b.conn,
+		b.wid,
+		xproto.CwBackPixmap,
+		[]uint32{uint32(pix)},
+	)
+
+	//
+	err = drawText(b.conn, b.font, pix, b.wid, "TEST")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
+// TODO
+//
 func (b Bar) UpdateEWMH() error {
 	var err error
 
@@ -105,8 +136,7 @@ func (b Bar) UpdateEWMH() error {
 	data := make([]byte, 4)
 	xgb.Put32(data[0:], uint32(dataAtom))
 
-	//
-	xproto.ChangePropertyChecked(
+	err = xproto.ChangePropertyChecked(
 		b.conn,
 		xproto.PropModeReplace,
 		b.wid,
@@ -116,6 +146,9 @@ func (b Bar) UpdateEWMH() error {
 		uint32(len(data)/4),
 		data,
 	).Check()
+	if err != nil {
+		return err
+	}
 
 	// TODO name
 
