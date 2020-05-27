@@ -1,28 +1,26 @@
 package main
 
-import (
-	"fmt"
-	"time"
-
-	"github.com/BurntSushi/xgb"
-)
+import "fmt"
 
 func main() {
-	X, err := xgb.NewConn()
+	//
+	bar, err := NewBar()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	bar := New(X)
+	//
 	err = bar.Map()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// spin
-	for {
-		time.Sleep(100 * time.Millisecond)
+	//
+	err = bar.Draw()
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 }
