@@ -13,7 +13,9 @@ var (
 	foreground uint32 = 0xF8F8F8
 	background uint32 = 0x181818
 
-	fontName = "-*-gohufont-medium-r-*-*-14-*-*-*-*-*-*-*"
+	fonts = []string{
+		"-*-gohufont-medium-r-*-*-14-*-*-*-*-*-*-*",
+	}
 
 	modules = []Module{
 		Test{
@@ -21,6 +23,7 @@ var (
 			Y:          0,
 			W:          100,
 			H:          height,
+			Font:       fonts[0],
 			Foreground: 0xF8F8F8,
 			Background: 0x7CAFC2,
 			Interval:   500 * time.Millisecond,
@@ -30,6 +33,7 @@ var (
 			Y:          0,
 			W:          100,
 			H:          height,
+			Font:       fonts[0],
 			Foreground: 0xF8F8F8,
 			Background: 0xAB4642,
 			Interval:   1000 * time.Millisecond,

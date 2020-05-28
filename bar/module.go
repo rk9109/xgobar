@@ -14,6 +14,7 @@ type Block struct {
 
 	//
 	Text string
+	Font string
 
 	//
 	Foreground uint32
@@ -30,6 +31,9 @@ type Test struct {
 
 	//
 	W, H uint16
+
+	//
+	Font string
 
 	//
 	Foreground uint32
@@ -51,6 +55,7 @@ func (t Test) run(ch chan []Block) {
 					W:          t.W,
 					H:          t.H,
 					Text:       "counter: " + strconv.Itoa(counter),
+					Font:       t.Font,
 					Foreground: t.Foreground,
 					Background: t.Background,
 				},

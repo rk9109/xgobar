@@ -7,13 +7,15 @@ import (
 
 type Bar struct {
 	//
-	conn     *xgb.Conn
-	screen   *xproto.ScreenInfo
-	pixmap   xproto.Pixmap
-	window   xproto.Window
-	gc       xproto.Gcontext
-	font     xproto.Font
-	fontInfo *xproto.QueryFontReply
+	conn   *xgb.Conn
+	screen *xproto.ScreenInfo
+	pixmap xproto.Pixmap
+	window xproto.Window
+	gc     xproto.Gcontext
+
+	//
+	font     map[string]xproto.Font
+	fontInfo map[string]*xproto.QueryFontReply
 
 	//
 	name string
@@ -51,6 +53,8 @@ func NewBar() (Bar, error) {
 		conn:       conn,
 		screen:     screen,
 		name:       name,
+		font:       make(map[string]xproto.Font),
+		fontInfo:   make(map[string]*xproto.QueryFontReply),
 		x:          x,
 		y:          y,
 		width:      width,
@@ -82,9 +86,11 @@ func (b *Bar) Map() error {
 		return err
 	}
 
-	err = b.getFont()
-	if err != nil {
-		return err
+	for _, font := range fonts {
+		err = b.getFont(font)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = xproto.CreateWindowChecked(
@@ -118,6 +124,7 @@ func (b *Bar) Map() error {
 		Foreground: b.foreground,
 		Background: b.background,
 		Text:       "",
+		Font:       "",
 	})
 
 	return nil
@@ -145,7 +152,7 @@ func (b *Bar) Draw() error {
 }
 
 // Load font and font properties
-func (b *Bar) getFont() error {
+func (b *Bar) getFont(fontName string) error {
 	font, err := xproto.NewFontId(b.conn)
 	if err != nil {
 		return err
@@ -166,8 +173,8 @@ func (b *Bar) getFont() error {
 		return err
 	}
 
-	b.font = font
-	b.fontInfo = fontInfo
+	b.font[fontName] = font
+	b.fontInfo[fontName] = fontInfo
 
 	return nil
 }
@@ -287,7 +294,7 @@ func (b *Bar) drawText(block Block) error {
 		b.conn,
 		b.gc,
 		xproto.GcForeground|xproto.GcBackground|xproto.GcFont,
-		[]uint32{block.Foreground, block.Background, uint32(b.font)},
+		[]uint32{block.Foreground, block.Background, uint32(b.font[block.Font])},
 	).Check()
 	if err != nil {
 		return err
