@@ -6,7 +6,7 @@ import (
 )
 
 // Intern an atom
-// Return unique identifier (atom) associated to property name
+// Return unique identifier (atom) associated to property name.
 func getAtom(conn *xgb.Conn, name string) (xproto.Atom, error) {
 	reply, err := xproto.InternAtom(conn, true, uint16(len(name)), name).Reply()
 	if err != nil {
@@ -15,7 +15,7 @@ func getAtom(conn *xgb.Conn, name string) (xproto.Atom, error) {
 	return reply.Atom, nil
 }
 
-// Update ...
+// Update properties
 // Based on https://github.com/BurntSushi/xgbutil/
 func updateProp(conn *xgb.Conn, window xproto.Window, format byte,
 	propName string, typeName string, data []byte) error {

@@ -3,15 +3,15 @@ package main
 import "time"
 
 var (
-	name = "TEST_BAR"
+	name string = ""
 
-	x = 0
-	y = 0
-	w = 1920
-	h = 25
+	x      int16  = 0
+	y      int16  = 0
+	width  uint16 = 1920
+	height uint16 = 25
 
-	fg = 0xF8F8F8
-	bg = 0x181818
+	foreground uint32 = 0xF8F8F8
+	background uint32 = 0x181818
 
 	fontName = "-*-gohufont-medium-r-*-*-14-*-*-*-*-*-*-*"
 
@@ -20,7 +20,7 @@ var (
 			X:          25,
 			Y:          0,
 			W:          100,
-			H:          uint16(h),
+			H:          height,
 			Foreground: 0xF8F8F8,
 			Background: 0x7CAFC2,
 			Interval:   500 * time.Millisecond,
@@ -29,7 +29,7 @@ var (
 			X:          150,
 			Y:          0,
 			W:          100,
-			H:          uint16(h),
+			H:          height,
 			Foreground: 0xF8F8F8,
 			Background: 0xAB4642,
 			Interval:   1000 * time.Millisecond,
