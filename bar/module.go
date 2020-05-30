@@ -1,67 +1,93 @@
 package main
 
 import (
-	"strconv"
 	"time"
+	//"github.com/i3/go-i3"
 )
 
-type Block struct {
-	//
-	X, Y int16
-
-	//
-	W, H uint16
-
-	//
-	Text string
-	Font string
-
-	//
-	Foreground uint32
-	Background uint32
+// Rectangle representation
+//
+type Rectangle struct {
+	x      int16
+	y      int16
+	width  uint16
+	height uint16
+	color  uint32
 }
 
+// Text representation
+//
+type Text struct {
+	text  string
+	font  string
+	color uint32
+}
+
+// Block representation
+//
+type Block struct {
+	text      Text
+	rectangle Rectangle
+}
+
+// Module interface
+//
 type Module interface {
 	run(ch chan []Block)
 }
 
-type Test struct {
-	//
-	X, Y int16
-
-	//
-	W, H uint16
-
-	//
-	Font string
-
-	//
-	Foreground uint32
-	Background uint32
-
-	//
-	Interval time.Duration
+// Clock module
+//
+// Module outputs the current time. See https://golang.org/pkg/time/#Time.Format
+// to customize output format
+type Clock struct {
+	x          int16
+	y          int16
+	width      uint16
+	height     uint16
+	font       string
+	foreground uint32
+	background uint32
+	format     string
 }
 
-func (t Test) run(ch chan []Block) {
+func (c Clock) run(ch chan []Block) {
 	go func() {
-		counter := 0
 		for {
-			counter++
-			blocks := []Block{
+			currentTime := time.Now().Format(c.format)
+
+			block := []Block{
 				Block{
-					X:          t.X,
-					Y:          t.Y,
-					W:          t.W,
-					H:          t.H,
-					Text:       "counter: " + strconv.Itoa(counter),
-					Font:       t.Font,
-					Foreground: t.Foreground,
-					Background: t.Background,
+					rectangle: Rectangle{
+						x:      c.x,
+						y:      c.y,
+						width:  c.width,
+						height: c.height,
+						color:  c.background,
+					},
+					text: Text{
+						text:  currentTime,
+						font:  c.font,
+						color: c.foreground,
+					},
 				},
 			}
-			ch <- blocks
-			time.Sleep(t.Interval)
+			ch <- block
+
+			time.Sleep(time.Second)
+		}
+	}()
+}
+
+// Workspace module
+//
+type Workspace struct {
+}
+
+func (w Workspace) run(ch chan []Block) {
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 }

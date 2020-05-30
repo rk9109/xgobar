@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/xproto"
 )
 
+// Bar representation
 type Bar struct {
 	//
 	conn   *xgb.Conn
@@ -14,22 +17,12 @@ type Bar struct {
 	gc     xproto.Gcontext
 
 	//
-	font     map[string]xproto.Font
-	fontInfo map[string]*xproto.QueryFontReply
+	font       map[string]xproto.Font
+	fontWidth  map[string]int16
+	fontHeight map[string]int16
 
 	//
-	name string
-
-	//
-	x, y int16
-
-	//
-	width  uint16
-	height uint16
-
-	//
-	foreground uint32
-	background uint32
+	rectangle Rectangle
 
 	//
 	modules []Module
@@ -40,27 +33,30 @@ type Bar struct {
 
 // Return a bar initialized to configuration
 // NewBar initializes connection to X server, and retrieves setup information.
-func NewBar() (Bar, error) {
+func NewBar() (*Bar, error) {
 	conn, err := xgb.NewConn()
 	if err != nil {
-		return Bar{}, err
+		return &Bar{}, err
 	}
 
 	setup := xproto.Setup(conn)
 	screen := setup.DefaultScreen(conn)
 
-	return Bar{
+	rectangle := Rectangle{
+		x:      x,
+		y:      y,
+		width:  width,
+		height: height,
+		color:  background,
+	}
+
+	return &Bar{
 		conn:       conn,
 		screen:     screen,
-		name:       name,
 		font:       make(map[string]xproto.Font),
-		fontInfo:   make(map[string]*xproto.QueryFontReply),
-		x:          x,
-		y:          y,
-		width:      width,
-		height:     height,
-		foreground: foreground,
-		background: background,
+		fontWidth:  make(map[string]int16),
+		fontHeight: make(map[string]int16),
+		rectangle:  rectangle,
 		modules:    modules,
 		ch:         make(chan []Block),
 	}, nil
@@ -86,11 +82,9 @@ func (b *Bar) Map() error {
 		return err
 	}
 
-	for _, font := range fonts {
-		err = b.getFont(font)
-		if err != nil {
-			return err
-		}
+	err = b.getFonts()
+	if err != nil {
+		return err
 	}
 
 	err = xproto.CreateWindowChecked(
@@ -98,8 +92,8 @@ func (b *Bar) Map() error {
 		b.screen.RootDepth,
 		b.window,
 		b.screen.Root,
-		b.x, b.y,
-		b.width, b.height,
+		b.rectangle.x, b.rectangle.y,
+		b.rectangle.width, b.rectangle.height,
 		0,
 		xproto.WindowClassInputOutput,
 		b.screen.RootVisual,
@@ -117,14 +111,9 @@ func (b *Bar) Map() error {
 
 	xproto.MapWindow(b.conn, b.window)
 
-	// TODO cleanup (?)
+	// initialize bar background
 	b.drawBlock(Block{
-		X: 0, Y: 0,
-		W: b.width, H: b.height,
-		Foreground: b.foreground,
-		Background: b.background,
-		Text:       "",
-		Font:       "",
+		rectangle: b.rectangle,
 	})
 
 	return nil
@@ -152,29 +141,32 @@ func (b *Bar) Draw() error {
 }
 
 // Load font and font properties
-func (b *Bar) getFont(fontName string) error {
-	font, err := xproto.NewFontId(b.conn)
-	if err != nil {
-		return err
-	}
+func (b *Bar) getFonts() error {
+	for _, fontName := range fonts {
+		font, err := xproto.NewFontId(b.conn)
+		if err != nil {
+			return err
+		}
 
-	err = xproto.OpenFontChecked(
-		b.conn,
-		font,
-		uint16(len(fontName)),
-		fontName,
-	).Check()
-	if err != nil {
-		return err
-	}
+		err = xproto.OpenFontChecked(
+			b.conn,
+			font,
+			uint16(len(fontName)),
+			fontName,
+		).Check()
+		if err != nil {
+			return err
+		}
 
-	fontInfo, err := xproto.QueryFont(b.conn, xproto.Fontable(font)).Reply()
-	if err != nil {
-		return err
-	}
+		reply, err := xproto.QueryFont(b.conn, xproto.Fontable(font)).Reply()
+		if err != nil {
+			return err
+		}
 
-	b.font[fontName] = font
-	b.fontInfo[fontName] = fontInfo
+		b.font[fontName] = font
+		b.fontWidth[fontName] = reply.MaxBounds.CharacterWidth
+		b.fontHeight[fontName] = reply.FontAscent - reply.FontDescent
+	}
 
 	return nil
 }
@@ -191,8 +183,8 @@ func (b *Bar) getPixmap() error {
 		b.screen.RootDepth,
 		pixmap,
 		xproto.Drawable(b.screen.Root),
-		b.width,
-		b.height,
+		b.rectangle.width,
+		b.rectangle.height,
 	).Check()
 	if err != nil {
 		return err
@@ -244,8 +236,9 @@ func (b *Bar) drawBlock(block Block) error {
 		xproto.Drawable(b.pixmap),
 		xproto.Drawable(b.window),
 		b.gc,
-		block.X, block.Y, block.X, block.Y,
-		block.W, block.H,
+		block.rectangle.x, block.rectangle.y,
+		block.rectangle.x, block.rectangle.y,
+		block.rectangle.width, block.rectangle.height,
 	)
 
 	return nil
@@ -259,17 +252,17 @@ func (b *Bar) drawRect(block Block) error {
 		b.conn,
 		b.gc,
 		xproto.GcForeground,
-		[]uint32{block.Background},
+		[]uint32{block.rectangle.color},
 	).Check()
 	if err != nil {
 		return err
 	}
 
 	rectangle := xproto.Rectangle{
-		X:      block.X,
-		Y:      block.Y,
-		Width:  block.W,
-		Height: block.H,
+		X:      block.rectangle.x,
+		Y:      block.rectangle.y,
+		Width:  block.rectangle.width,
+		Height: block.rectangle.height,
 	}
 
 	err = xproto.PolyFillRectangleChecked(
@@ -290,27 +283,38 @@ func (b *Bar) drawRect(block Block) error {
 // drawText updates the bar pixmap, but changes are not rendered until
 // xproto.CopyArea() is called.
 func (b *Bar) drawText(block Block) error {
+	if block.text.text == "" {
+		return nil
+	}
+
+	font, ok := b.font[block.text.font]
+	fontWidth, ok := b.fontWidth[block.text.font]
+	fontHeight, ok := b.fontHeight[block.text.font]
+	if !ok {
+        return errors.New("invalid font")
+	}
+
+	// calculate coordinates to center text inside rectangle
+	fontX := block.rectangle.x + (int16(block.rectangle.width)-int16(len(block.text.text))*fontWidth)/2
+	fontY := block.rectangle.y + int16(block.rectangle.height)/2 + fontHeight/2
+
 	err := xproto.ChangeGCChecked(
 		b.conn,
 		b.gc,
 		xproto.GcForeground|xproto.GcBackground|xproto.GcFont,
-		[]uint32{block.Foreground, block.Background, uint32(b.font[block.Font])},
+		[]uint32{block.text.color, block.rectangle.color, uint32(font)},
 	).Check()
 	if err != nil {
 		return err
 	}
 
-	// calculate (x, y) coordinates to center text
-	fontX := block.X
-	fontY := block.Y + int16(block.H)
-
 	err = xproto.ImageText8Checked(
 		b.conn,
-		byte(len(block.Text)),
+		byte(len(block.text.text)),
 		xproto.Drawable(b.pixmap),
 		b.gc,
 		fontX, fontY,
-		block.Text,
+		block.text.text,
 	).Check()
 	if err != nil {
 		return err
@@ -341,16 +345,6 @@ func (b *Bar) updateEWMH() error {
 	if err != nil {
 		return err
 	}
-
-	//
-	err = updateProp(
-		b.conn,
-		b.window,
-		8,
-		"_NET_WM_NAME",
-		"UTF8_STRING",
-		[]byte(b.name),
-	)
 
 	return nil
 }
