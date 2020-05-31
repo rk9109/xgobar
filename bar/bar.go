@@ -237,6 +237,11 @@ func (b *Bar) drawBlock(block Block) error {
 		return err
 	}
 
+	err = b.drawUnderline(block)
+	if err != nil {
+		return err
+	}
+
 	err = b.drawText(block)
 	if err != nil {
 		return err
@@ -261,6 +266,40 @@ func (b *Bar) drawRect(block Block) error {
 		Y:      block.rectangle.y,
 		Width:  block.rectangle.width,
 		Height: block.rectangle.height,
+	}
+
+	xproto.PolyFillRectangle(
+		b.conn,
+		xproto.Drawable(b.pixmap),
+		b.gc,
+		[]xproto.Rectangle{rectangle},
+	)
+
+	return nil
+}
+
+// Update block underline
+// drawUnderline updates the bar pixmap, but changes are not rendered until
+// redraw() is called.
+func (b *Bar) drawUnderline(block Block) error {
+	if block.underline.height == 0 {
+		return nil
+	}
+	xproto.ChangeGC(
+		b.conn,
+		b.gc,
+		xproto.GcForeground,
+		[]uint32{block.underline.color},
+	)
+
+	underlineY := block.rectangle.y +
+		int16(block.rectangle.height-block.underline.height)
+
+	rectangle := xproto.Rectangle{
+		X:      block.rectangle.x,
+		Y:      underlineY,
+		Width:  block.rectangle.width,
+		Height: block.underline.height,
 	}
 
 	xproto.PolyFillRectangle(

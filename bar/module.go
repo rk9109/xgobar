@@ -1,10 +1,24 @@
 package main
 
 import (
+	"io/ioutil"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/i3/go-i3"
 )
+
+type Text struct {
+	text  string
+	font  string
+	color uint32
+}
+
+type Underline struct {
+	height uint16
+	color  uint32
+}
 
 // Rectangle representation
 //
@@ -16,18 +30,11 @@ type Rectangle struct {
 	color  uint32
 }
 
-// Text representation
-//
-type Text struct {
-	text  string
-	font  string
-	color uint32
-}
-
 // Block representation
 //
 type Block struct {
 	text      Text
+	underline Underline
 	rectangle Rectangle
 	name      string
 }
@@ -62,7 +69,7 @@ func (t Time) run(ch chan []Block) {
 	}()
 }
 
-func (t Time) update() []Block {
+func (t *Time) update() []Block {
 	currentTime := time.Now().Format(t.format)
 
 	return []Block{
@@ -89,7 +96,7 @@ func (t Time) update() []Block {
 // Module outputs current CPU usage. CPU usage is calculated by polling
 // the contents of /proc/stat.
 type CPU struct {
-	// public configuration
+	// public
 	x          int16
 	y          int16
 	width      uint16
@@ -99,21 +106,63 @@ type CPU struct {
 	background uint32
 
 	// private
-	count uint64
+	inactive uint64
+	active   uint64
 }
 
 func (c CPU) run(ch chan []Block) {
 	go func() {
 		for {
 			ch <- c.update()
-			time.Sleep(time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}()
 }
 
-func (c CPU) update() []Block {
-	// TODO
-	return []Block{}
+func (c *CPU) update() []Block {
+	content, err := ioutil.ReadFile("/proc/stat")
+	if err != nil {
+		return []Block{}
+	}
+
+	lines := strings.Split(string(content), "\n")
+	counts := strings.Fields(lines[0])
+
+	var inactive, active uint64 = 0, 0
+	for i := 1; i < len(counts); i++ {
+		count, err := strconv.ParseUint(counts[i], 10, 64)
+		if err != nil {
+			return []Block{}
+		}
+		if i != 4 {
+			active += count
+		} else {
+			inactive = count
+		}
+	}
+	// calculate CPU usage
+	usage := int(100 * (active - c.active) /
+		((active - c.active) + (inactive - c.inactive)))
+	c.active = active
+	c.inactive = inactive
+
+	return []Block{
+		Block{
+			rectangle: Rectangle{
+				x:      c.x,
+				y:      c.y,
+				width:  c.width,
+				height: c.height,
+				color:  c.background,
+			},
+			text: Text{
+				text:  strconv.Itoa(usage),
+				font:  c.font,
+				color: c.foreground,
+			},
+			name: "cpu",
+		},
+	}
 }
 
 // Workspace module
@@ -140,17 +189,18 @@ func (w Workspace) run(ch chan []Block) {
 	}()
 }
 
-func (w Workspace) update() []Block {
+func (w *Workspace) update() []Block {
 	workspaces, err := i3.GetWorkspaces()
 	if err != nil {
 		return []Block{}
 	}
 
 	blocks := make([]Block, len(workspaces))
+	x := w.x
 	for i, workspace := range workspaces {
 		blocks[i] = Block{
 			rectangle: Rectangle{
-				x:      w.x,
+				x:      x,
 				y:      w.y,
 				width:  w.width,
 				height: w.height,
@@ -167,7 +217,7 @@ func (w Workspace) update() []Block {
 			blocks[i].rectangle.color = w.backgroundActive
 		}
 		// increment position
-		w.x += int16(w.width) + 5
+		x += int16(w.width) + 5
 	}
 	return blocks
 }

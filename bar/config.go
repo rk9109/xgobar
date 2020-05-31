@@ -22,7 +22,16 @@ var (
 			font:       fonts[0],
 			foreground: foreground,
 			background: background,
-			format:     "Jan 2 3:4",
+			format:     "Mon 2 03:04",
+		},
+		CPU{
+			x:          (1920 - 160),
+			y:          y,
+			width:      50,
+			height:     height,
+			font:       fonts[0],
+			foreground: foreground,
+			background: background,
 		},
 		Workspace{
 			x:                  10,
