@@ -14,15 +14,25 @@ var (
 	}
 
 	modules = []Module{
-		Clock{
-			x:          (1920 - 100) / 2,
+		Time{
+			x:          (1920 - 110),
 			y:          y,
 			width:      100,
 			height:     height,
 			font:       fonts[0],
 			foreground: foreground,
 			background: background,
-			format:     "3:04:05 PM",
+			format:     "Jan 2 3:4",
+		},
+		Workspace{
+			x:                  10,
+			y:                  y,
+			width:              25,
+			height:             height,
+			font:               fonts[0],
+			foreground:         foreground,
+			backgroundActive:   0x7CAFC2,
+			backgroundInactive: background,
 		},
 	}
 )

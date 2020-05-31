@@ -31,7 +31,7 @@ type Bar struct {
 	ch chan []Block
 }
 
-// Return a bar initialized to configuration
+// Return a bar initialized based on configuration
 // NewBar initializes connection to X server, and retrieves setup information.
 func NewBar() (*Bar, error) {
 	conn, err := xgb.NewConn()
@@ -111,11 +111,6 @@ func (b *Bar) Map() error {
 
 	xproto.MapWindow(b.conn, b.window)
 
-	// initialize bar background
-	b.drawBlock(Block{
-		rectangle: b.rectangle,
-	})
-
 	return nil
 }
 
@@ -128,15 +123,31 @@ func (b *Bar) Draw() error {
 		module.run(b.ch)
 	}
 
+	blockMap := make(map[string][]Block)
+
 	// Listen on channel for updated blocks
 	for {
-		blocks := <-b.ch
-		for _, block := range blocks {
-			err := b.drawBlock(block)
-			if err != nil {
-				return err
+		blockList := <-b.ch
+		if len(blockList) == 0 {
+			continue
+		}
+		blockMap[blockList[0].name] = blockList
+
+		// reset background
+		b.drawBlock(Block{
+			rectangle: b.rectangle,
+		})
+
+		for _, blockList := range blockMap {
+			for _, block := range blockList {
+				err := b.drawBlock(block)
+				if err != nil {
+					return err
+				}
 			}
 		}
+
+		b.redraw()
 	}
 }
 
@@ -218,8 +229,8 @@ func (b *Bar) getGcontext() error {
 }
 
 // Update block
-// drawBlock updates the bar pixmap and copies the updated area to
-// the bar.
+// drawBlock updates the bar pixmap, but changes are not rendered until
+// redraw() is called
 func (b *Bar) drawBlock(block Block) error {
 	err := b.drawRect(block)
 	if err != nil {
@@ -231,32 +242,19 @@ func (b *Bar) drawBlock(block Block) error {
 		return err
 	}
 
-	xproto.CopyArea(
-		b.conn,
-		xproto.Drawable(b.pixmap),
-		xproto.Drawable(b.window),
-		b.gc,
-		block.rectangle.x, block.rectangle.y,
-		block.rectangle.x, block.rectangle.y,
-		block.rectangle.width, block.rectangle.height,
-	)
-
 	return nil
 }
 
 // Update block rectangle
 // drawRect updates the bar pixmap, but changes are not rendered until
-// xproto.CopyArea() is called.
+// redraw() is called.
 func (b *Bar) drawRect(block Block) error {
-	err := xproto.ChangeGCChecked(
+	xproto.ChangeGC(
 		b.conn,
 		b.gc,
 		xproto.GcForeground,
 		[]uint32{block.rectangle.color},
-	).Check()
-	if err != nil {
-		return err
-	}
+	)
 
 	rectangle := xproto.Rectangle{
 		X:      block.rectangle.x,
@@ -265,15 +263,12 @@ func (b *Bar) drawRect(block Block) error {
 		Height: block.rectangle.height,
 	}
 
-	err = xproto.PolyFillRectangleChecked(
+	xproto.PolyFillRectangle(
 		b.conn,
 		xproto.Drawable(b.pixmap),
 		b.gc,
 		[]xproto.Rectangle{rectangle},
-	).Check()
-	if err != nil {
-		return err
-	}
+	)
 
 	return nil
 }
@@ -281,7 +276,7 @@ func (b *Bar) drawRect(block Block) error {
 // Update block text
 // Text is centered inside the block
 // drawText updates the bar pixmap, but changes are not rendered until
-// xproto.CopyArea() is called.
+// redraw() is called.
 func (b *Bar) drawText(block Block) error {
 	if block.text.text == "" {
 		return nil
@@ -299,29 +294,36 @@ func (b *Bar) drawText(block Block) error {
 		(int16(block.rectangle.width)-int16(len(block.text.text))*fontWidth)/2
 	fontY := block.rectangle.y + int16(block.rectangle.height)/2 + fontHeight/2
 
-	err := xproto.ChangeGCChecked(
+	xproto.ChangeGC(
 		b.conn,
 		b.gc,
 		xproto.GcForeground|xproto.GcBackground|xproto.GcFont,
 		[]uint32{block.text.color, block.rectangle.color, uint32(font)},
-	).Check()
-	if err != nil {
-		return err
-	}
+	)
 
-	err = xproto.ImageText8Checked(
+	xproto.ImageText8(
 		b.conn,
 		byte(len(block.text.text)),
 		xproto.Drawable(b.pixmap),
 		b.gc,
 		fontX, fontY,
 		block.text.text,
-	).Check()
-	if err != nil {
-		return err
-	}
+	)
 
 	return nil
+}
+
+// Update bar using pixmap
+func (b *Bar) redraw() {
+	xproto.CopyArea(
+		b.conn,
+		xproto.Drawable(b.pixmap),
+		xproto.Drawable(b.window),
+		b.gc,
+		0, 0,
+		0, 0,
+		b.rectangle.width, b.rectangle.height,
+	)
 }
 
 // Update EWMH properties
