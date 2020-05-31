@@ -291,11 +291,12 @@ func (b *Bar) drawText(block Block) error {
 	fontWidth, ok := b.fontWidth[block.text.font]
 	fontHeight, ok := b.fontHeight[block.text.font]
 	if !ok {
-        return errors.New("invalid font")
+		return errors.New("invalid font")
 	}
 
 	// calculate coordinates to center text inside rectangle
-	fontX := block.rectangle.x + (int16(block.rectangle.width)-int16(len(block.text.text))*fontWidth)/2
+	fontX := block.rectangle.x +
+		(int16(block.rectangle.width)-int16(len(block.text.text))*fontWidth)/2
 	fontY := block.rectangle.y + int16(block.rectangle.height)/2 + fontHeight/2
 
 	err := xproto.ChangeGCChecked(
@@ -324,27 +325,43 @@ func (b *Bar) drawText(block Block) error {
 }
 
 // Update EWMH properties
-// TODO
+// Reference: https://specifications.freedesktop.org/wm-spec/wm-spec-1.3.html
 func (b *Bar) updateEWMH() error {
-	//
-	dataAtom, err := getAtom(b.conn, "_NET_WM_WINDOW_TYPE_DOCK")
+
+	// _NET_WM_WINDOW_TYPE_DOCK indicates dock/panel behavior (bar should remain
+	// on top of everything).
+	atom, err := getAtom(b.conn, "_NET_WM_WINDOW_TYPE_DOCK")
 	if err != nil {
 		return err
 	}
-	data := make([]byte, 4)
-	xgb.Put32(data, uint32(dataAtom))
 
-	err = updateProp(
-		b.conn,
-		b.window,
-		32,
-		"_NET_WM_WINDOW_TYPE",
-		"ATOM",
-		data,
+	err = updateProp32(
+		b.conn, b.window,
+		xproto.PropModeReplace,
+		"_NET_WM_WINDOW_TYPE", "ATOM",
+		uint(atom),
 	)
 	if err != nil {
 		return err
 	}
+
+	// _NET_WM_STATE_STICKY indicates bar position on the screen should be fixed.
+	atom, err = getAtom(b.conn, "_NET_WM_STATE_STICKY")
+	if err != nil {
+		return err
+	}
+
+	err = updateProp32(
+		b.conn, b.window,
+		xproto.PropModeAppend,
+		"_NET_WM_STATE", "ATOM",
+		uint(atom),
+	)
+	if err != nil {
+		return err
+	}
+
+	// TODO update struts (?)
 
 	return nil
 }

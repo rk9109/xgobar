@@ -16,9 +16,15 @@ func getAtom(conn *xgb.Conn, name string) (xproto.Atom, error) {
 }
 
 // Update properties
-// Based on https://github.com/BurntSushi/xgbutil/
-func updateProp(conn *xgb.Conn, window xproto.Window, format byte,
-	propName string, typeName string, data []byte) error {
+// Converts 32-bit properties to correct format.
+// Based on https://github.com/BurntSushi/xgbutil/xprop/xprop.go
+func updateProp32(conn *xgb.Conn, window xproto.Window, mode byte,
+	propName string, typeName string, properties ...uint) error {
+
+	data := make([]byte, len(properties)*4)
+	for i, prop := range properties {
+		xgb.Put32(data[(i*4):], uint32(prop))
+	}
 
 	propAtom, err := getAtom(conn, propName)
 	if err != nil {
@@ -32,12 +38,11 @@ func updateProp(conn *xgb.Conn, window xproto.Window, format byte,
 
 	return xproto.ChangePropertyChecked(
 		conn,
-		xproto.PropModeReplace,
+		mode,
 		window,
-		propAtom,
-		typeAtom,
-		format,
-		uint32(len(data)/(int(format)/8)),
+		propAtom, typeAtom,
+		32,
+		uint32(len(data)/4),
 		data,
 	).Check()
 }
