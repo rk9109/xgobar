@@ -45,6 +45,47 @@ type Module interface {
 	run(ch chan []Block)
 }
 
+// Plaintext module
+//
+// Module outputs a single constant string. Used to construct static elements in the
+// bar (e.g. icons).
+type Plaintext struct {
+	x          int16
+	y          int16
+	width      uint16
+	height     uint16
+	font       string
+	foreground uint32
+	background uint32
+	text       string
+	name       string
+}
+
+func (p Plaintext) run(ch chan []Block) {
+	go func() {
+		for {
+			ch <- []Block{
+				Block{
+					rectangle: Rectangle{
+						x:      p.x,
+						y:      p.y,
+						width:  p.width,
+						height: p.height,
+						color:  p.background,
+					},
+					text: Text{
+						text:  p.text,
+						font:  p.font,
+						color: p.foreground,
+					},
+					name: p.name,
+				},
+			}
+			time.Sleep(1000 * time.Second)
+		}
+	}()
+}
+
 // Time module
 //
 // Module outputs the current time. See https://golang.org/pkg/time/#Time.Format
@@ -161,6 +202,118 @@ func (c *CPU) update() []Block {
 				color: c.foreground,
 			},
 			name: "cpu",
+		},
+	}
+}
+
+// Memory module
+//
+// Module outputs current memory usage. Memory usage is calculated by polling the
+// contents of /proc/meminfo. Uses MemAvailable in /proc/meminfo, requiring Linux
+// kernel 3.14 or higher.
+type Memory struct {
+	x          int16
+	y          int16
+	width      uint16
+	height     uint16
+	font       string
+	foreground uint32
+	background uint32
+}
+
+func (m Memory) run(ch chan []Block) {
+	go func() {
+		for {
+			ch <- m.update()
+			time.Sleep(2 * time.Second)
+		}
+	}()
+}
+
+func (m *Memory) update() []Block {
+	content, err := ioutil.ReadFile("/proc/meminfo")
+	if err != nil {
+		return []Block{}
+	}
+
+	lines := strings.Split(string(content), "\n")
+	memoryTotal, err := strconv.ParseInt(strings.Fields(lines[0])[1], 10, 0)
+	memoryAvailable, err := strconv.ParseInt(strings.Fields(lines[2])[1], 10, 0)
+	if err != nil {
+		return []Block{}
+	}
+	// calculate memory usage
+	usage := int(100 * (memoryTotal - memoryAvailable) / memoryTotal)
+
+	return []Block{
+		Block{
+			rectangle: Rectangle{
+				x:      m.x,
+				y:      m.y,
+				width:  m.width,
+				height: m.height,
+				color:  m.background,
+			},
+			text: Text{
+				text:  strconv.Itoa(usage),
+				font:  m.font,
+				color: m.foreground,
+			},
+			name: "memory",
+		},
+	}
+}
+
+// Battery module
+//
+// Module output current battery percentage. Battery percentage is calculated
+// by polling /sys/class/power_supply/BAT1/capacity, requiring Linux kernel 3.19
+// or higher.
+type Battery struct {
+	x          int16
+	y          int16
+	width      uint16
+	height     uint16
+	font       string
+	foreground uint32
+	background uint32
+}
+
+func (b Battery) run(ch chan []Block) {
+	go func() {
+		for {
+			ch <- b.update()
+			time.Sleep(15 * time.Second)
+		}
+	}()
+}
+
+func (b *Battery) update() []Block {
+	content, err := ioutil.ReadFile("/sys/class/power_supply/BAT1/capacity")
+	if err != nil {
+		return []Block{}
+	}
+
+	percentage, err := strconv.ParseInt(strings.Split(string(content), "\n")[0], 10, 0)
+	if err != nil {
+		return []Block{}
+	}
+
+	return []Block{
+		Block{
+			rectangle: Rectangle{
+				x:      b.x,
+				y:      b.y,
+				width:  b.width,
+				height: b.height,
+				color:  b.background,
+			},
+			text: Text{
+				text:  strconv.Itoa(int(percentage)),
+				font:  b.font,
+				color: b.foreground,
+			},
+			name: "battery",
 		},
 	}
 }

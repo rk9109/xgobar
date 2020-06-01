@@ -6,8 +6,9 @@ var (
 	width  uint16 = 1920
 	height uint16 = 25
 
-	foreground uint32 = 0xF8F8F8
-	background uint32 = 0x181818
+	foreground     uint32 = 0xF8F8F8
+	foregroundDark uint32 = 0xB8B8B8
+	background     uint32 = 0x181818
 
 	fonts = []string{
 		"-*-gohufont-medium-r-*-*-14-*-*-*-*-*-*-*",
@@ -24,14 +25,65 @@ var (
 			background: background,
 			format:     "Mon 2 03:04",
 		},
-		CPU{
-			x:          (1920 - 160),
+		Battery{
+			x:          (1920 - 150),
 			y:          y,
-			width:      50,
+			width:      25,
 			height:     height,
 			font:       fonts[0],
 			foreground: foreground,
 			background: background,
+		},
+		Plaintext{
+			x:          (1920 - 190),
+			y:          y,
+			width:      40,
+			height:     height,
+			font:       fonts[0],
+			foreground: foregroundDark,
+			background: background,
+			text:       "BAT:",
+			name:       "aaaa",
+		},
+		CPU{
+			x:          (1920 - 230),
+			y:          y,
+			width:      25,
+			height:     height,
+			font:       fonts[0],
+			foreground: foreground,
+			background: background,
+		},
+		Plaintext{
+			x:          (1920 - 270),
+			y:          y,
+			width:      40,
+			height:     height,
+			font:       fonts[0],
+			foreground: foregroundDark,
+			background: background,
+			text:       "CPU:",
+			name:       "bbbb",
+		},
+		Memory{
+			x:          (1920 - 310),
+			y:          y,
+			width:      25,
+			height:     height,
+			font:       fonts[0],
+			foreground: foreground,
+			background: background,
+		},
+		Plaintext{
+			x:          (1920 - 350),
+			y:          y,
+			width:      40,
+			height:     height,
+			font:       fonts[0],
+			foreground: foregroundDark,
+			background: background,
+			text:       "RAM:",
+			name:       "cccc",
 		},
 		Workspace{
 			x:                  10,
