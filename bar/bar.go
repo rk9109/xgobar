@@ -123,7 +123,7 @@ func (b *Bar) Draw() error {
 		module.run(b.ch)
 	}
 
-	blockMap := make(map[string][]Block)
+	blockMap := make(map[int][]Block)
 
 	// Listen on channel for updated blocks
 	for {
@@ -131,7 +131,7 @@ func (b *Bar) Draw() error {
 		if len(blockList) == 0 {
 			continue
 		}
-		blockMap[blockList[0].name] = blockList
+		blockMap[blockList[0].id] = blockList
 
 		// reset background
 		b.drawBlock(Block{

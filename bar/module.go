@@ -36,7 +36,7 @@ type Block struct {
 	text      Text
 	underline Underline
 	rectangle Rectangle
-	name      string
+	id        int
 }
 
 // Module interface
@@ -50,6 +50,7 @@ type Module interface {
 // Module outputs a single constant string. Used to construct static elements in the
 // bar (e.g. icons).
 type Plaintext struct {
+	// public
 	x          int16
 	y          int16
 	width      uint16
@@ -58,32 +59,39 @@ type Plaintext struct {
 	foreground uint32
 	background uint32
 	text       string
-	name       string
+
+	// private
+	id int
 }
 
 func (p Plaintext) run(ch chan []Block) {
+	p.id = counterId()
 	go func() {
 		for {
-			ch <- []Block{
-				Block{
-					rectangle: Rectangle{
-						x:      p.x,
-						y:      p.y,
-						width:  p.width,
-						height: p.height,
-						color:  p.background,
-					},
-					text: Text{
-						text:  p.text,
-						font:  p.font,
-						color: p.foreground,
-					},
-					name: p.name,
-				},
-			}
+			ch <- p.update()
 			time.Sleep(1000 * time.Second)
 		}
 	}()
+}
+
+func (p Plaintext) update() []Block {
+	return []Block{
+		Block{
+			rectangle: Rectangle{
+				x:      p.x,
+				y:      p.y,
+				width:  p.width,
+				height: p.height,
+				color:  p.background,
+			},
+			text: Text{
+				text:  p.text,
+				font:  p.font,
+				color: p.foreground,
+			},
+			id: p.id,
+		},
+	}
 }
 
 // Time module
@@ -91,6 +99,7 @@ func (p Plaintext) run(ch chan []Block) {
 // Module outputs the current time. See https://golang.org/pkg/time/#Time.Format
 // to customize output format
 type Time struct {
+	// public
 	x          int16
 	y          int16
 	width      uint16
@@ -99,9 +108,13 @@ type Time struct {
 	foreground uint32
 	background uint32
 	format     string
+
+	// private
+	id int
 }
 
 func (t Time) run(ch chan []Block) {
+	t.id = counterId()
 	go func() {
 		for {
 			ch <- t.update()
@@ -127,7 +140,7 @@ func (t *Time) update() []Block {
 				font:  t.font,
 				color: t.foreground,
 			},
-			name: "time",
+			id: t.id,
 		},
 	}
 }
@@ -147,11 +160,13 @@ type CPU struct {
 	background uint32
 
 	// private
+	id       int
 	inactive uint64
 	active   uint64
 }
 
 func (c CPU) run(ch chan []Block) {
+	c.id = counterId()
 	go func() {
 		for {
 			ch <- c.update()
@@ -201,7 +216,7 @@ func (c *CPU) update() []Block {
 				font:  c.font,
 				color: c.foreground,
 			},
-			name: "cpu",
+			id: c.id,
 		},
 	}
 }
@@ -212,6 +227,7 @@ func (c *CPU) update() []Block {
 // contents of /proc/meminfo. Uses MemAvailable in /proc/meminfo, requiring Linux
 // kernel 3.14 or higher.
 type Memory struct {
+	// public
 	x          int16
 	y          int16
 	width      uint16
@@ -219,9 +235,13 @@ type Memory struct {
 	font       string
 	foreground uint32
 	background uint32
+
+	// private
+	id int
 }
 
 func (m Memory) run(ch chan []Block) {
+	m.id = counterId()
 	go func() {
 		for {
 			ch <- m.update()
@@ -259,7 +279,7 @@ func (m *Memory) update() []Block {
 				font:  m.font,
 				color: m.foreground,
 			},
-			name: "memory",
+			id: m.id,
 		},
 	}
 }
@@ -270,6 +290,7 @@ func (m *Memory) update() []Block {
 // by polling /sys/class/power_supply/BAT1/capacity, requiring Linux kernel 3.19
 // or higher.
 type Battery struct {
+	// public
 	x          int16
 	y          int16
 	width      uint16
@@ -277,9 +298,13 @@ type Battery struct {
 	font       string
 	foreground uint32
 	background uint32
+
+	// private
+	id int
 }
 
 func (b Battery) run(ch chan []Block) {
+	b.id = counterId()
 	go func() {
 		for {
 			ch <- b.update()
@@ -313,7 +338,7 @@ func (b *Battery) update() []Block {
 				font:  b.font,
 				color: b.foreground,
 			},
-			name: "battery",
+			id: b.id,
 		},
 	}
 }
@@ -323,6 +348,7 @@ func (b *Battery) update() []Block {
 // Module outputs open workspaces and highlights the current active
 // workspace.
 type Workspace struct {
+	// public
 	x                  int16
 	y                  int16
 	width              uint16
@@ -331,9 +357,13 @@ type Workspace struct {
 	foreground         uint32
 	backgroundActive   uint32
 	backgroundInactive uint32
+
+	// private
+	id int
 }
 
 func (w Workspace) run(ch chan []Block) {
+	w.id = counterId()
 	go func() {
 		for {
 			ch <- w.update()
@@ -364,7 +394,7 @@ func (w *Workspace) update() []Block {
 				font:  w.font,
 				color: w.foreground,
 			},
-			name: "workspace",
+			id: w.id,
 		}
 		if workspace.Visible {
 			blocks[i].rectangle.color = w.backgroundActive

@@ -5,6 +5,15 @@ import (
 	"github.com/BurntSushi/xgb/xproto"
 )
 
+var counter int = 0
+
+// Return current counter
+// Used to associated each module to a unique ID.
+func counterId() int {
+	counter++
+	return counter
+}
+
 // Intern an atom
 // Return unique identifier (atom) associated to property name.
 func getAtom(conn *xgb.Conn, name string) (xproto.Atom, error) {

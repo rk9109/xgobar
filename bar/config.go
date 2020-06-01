@@ -43,7 +43,6 @@ var (
 			foreground: foregroundDark,
 			background: background,
 			text:       "BAT:",
-			name:       "aaaa",
 		},
 		CPU{
 			x:          (1920 - 230),
@@ -63,7 +62,6 @@ var (
 			foreground: foregroundDark,
 			background: background,
 			text:       "CPU:",
-			name:       "bbbb",
 		},
 		Memory{
 			x:          (1920 - 310),
@@ -83,7 +81,6 @@ var (
 			foreground: foregroundDark,
 			background: background,
 			text:       "RAM:",
-			name:       "cccc",
 		},
 		Workspace{
 			x:                  10,
